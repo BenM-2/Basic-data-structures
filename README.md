@@ -23,7 +23,7 @@ name_Extra_Example
 
 To begin using the stack it first needs to be intialised
 ``` c
-<dataType> stackData[64];
+static uint8_t stackData[64];
 
 Stack stack = {
     .data = stackData,
