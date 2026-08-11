@@ -70,7 +70,8 @@ static inline stack_err_t is_full(const Stack *const stack)
 
 static inline stack_err_t is_empty(const Stack *const stack)
 {
-    if (stack->pointerIndex == 0){
+    if (stack->pointerIndex == 0)
+    {
         return stack_Empty;
     }
     return stack_Ok;
