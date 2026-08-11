@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdatomic.h>
 
 //------------------------------------------------------------------------------
 // Structures
@@ -18,13 +20,14 @@
 /**
 Usage:
 <dataType> stackData[64];
-Stack stack = {.data = stackData,.dataSize = sizeof(stackData)}
+Stack stack = {.data = stackData,.dataSize = sizeof(stackData), .lock=ATOMIC_FLAG_INIT}
 */
 typedef struct Stack
 {
     volatile uint8_t *const data;
     const size_t dataSize;
     volatile size_t pointerIndex;
+    atomic_flag lock;
 } Stack;
 
 /*
@@ -36,12 +39,26 @@ typedef enum stack_err_t
     stack_Full,
     stack_Insuffient_Space,
     stack_Empty,
+    stack_Locked,
 } stack_err_t;
 
 //------------------------------------------------------------------------------
 // Function Definitions
 
 /* Returns if stack is full via a stack_err_t */
+static inline void stack_lock(Stack *const stack)
+{
+    while (atomic_flag_test_and_set_explicit(&stack->lock, memory_order_acquire))
+    {
+        // spin: another context holds the lock
+    }
+}
+
+static inline void stack_unlock(Stack *const stack)
+{
+    atomic_flag_clear_explicit(&stack->lock, memory_order_release);
+}
+
 static inline stack_err_t is_full(const Stack *const stack)
 {
     if (stack->pointerIndex >= stack->dataSize)
@@ -58,20 +75,25 @@ static inline size_t remaining_space(const Stack *const stack)
 
 static inline stack_err_t push(Stack *stack, const void *const data, const size_t numberOfBytes)
 {
+    stack_lock(stack);
+
     stack_err_t err = is_full(stack);
     if (err != stack_Ok)
     {
+        stack_unlock(stack);
         return err;
     }
 
     // check if sizeof(data) >= Remaining Size Left on stack
     if (remaining_space(stack) < numberOfBytes)
     {
+        stack_unlock(stack);
         return stack_Insuffient_Space;
     }
 
     memcpy((void *)&stack->data[stack->pointerIndex],data,numberOfBytes);
     stack->pointerIndex += numberOfBytes;
+    stack_unlock(stack);
     return stack_Ok;
 }
 
@@ -79,4 +101,7 @@ static inline stack_err_t pop()
 {
 }
 
+static inline stack_err_t peek()
+{
+}
 #endif
