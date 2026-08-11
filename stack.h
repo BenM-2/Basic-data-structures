@@ -37,7 +37,8 @@ typedef enum stack_err_t
 {
     stack_Ok,
     stack_Full,
-    stack_Insuffient_Space,
+    stack_Insufficient_Space,
+    stack_Invalid_Read_Size,
     stack_Empty,
     stack_Locked,
 } stack_err_t;
@@ -97,7 +98,7 @@ static inline stack_err_t push(Stack *stack, const void *const data, const size_
     if (remaining_space(stack) < numberOfBytes)
     {
         stack_unlock(stack);
-        return stack_Insuffient_Space;
+        return stack_Insufficient_Space;
     }
 
     memcpy((void *)&stack->data[stack->pointerIndex], data, numberOfBytes);
