@@ -40,7 +40,6 @@ typedef enum stack_err_t
     stack_Insufficient_Space,
     stack_Invalid_Read_Size,
     stack_Empty,
-    stack_Locked,
 } stack_err_t;
 
 //------------------------------------------------------------------------------
