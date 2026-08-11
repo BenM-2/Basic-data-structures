@@ -68,6 +68,14 @@ static inline stack_err_t is_full(const Stack *const stack)
     return stack_Ok;
 }
 
+static inline stack_err_t is_empty(const Stack *const stack)
+{
+    if (stack->pointerIndex == 0){
+        return stack_Empty;
+    }
+    return stack_Ok;
+}
+
 static inline size_t remaining_space(const Stack *const stack)
 {
     return stack->dataSize - stack->pointerIndex;
@@ -91,7 +99,7 @@ static inline stack_err_t push(Stack *stack, const void *const data, const size_
         return stack_Insuffient_Space;
     }
 
-    memcpy((void *)&stack->data[stack->pointerIndex],data,numberOfBytes);
+    memcpy((void *)&stack->data[stack->pointerIndex], data, numberOfBytes);
     stack->pointerIndex += numberOfBytes;
     stack_unlock(stack);
     return stack_Ok;
