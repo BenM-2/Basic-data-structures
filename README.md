@@ -9,7 +9,7 @@ All implemenations are built to be threadsafe and atomic for use in any project.
 
 To begin using the stack it first needs to be intialised
 ``` c
-<dataType> stackData[64];
+static uint8_t stackData[64];
 
 Stack stack = {
     .data = stackData,

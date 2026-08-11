@@ -35,7 +35,7 @@ All functions return this type to see what happened in the function
 */
 typedef enum stack_err_t
 {
-    stack_Ok,
+    stack_Ok = 0,
     stack_Full,
     stack_Insufficient_Space,
     stack_Invalid_Read_Size,
