@@ -107,8 +107,27 @@ static inline stack_err_t push(Stack *stack, const void *const data, const size_
     return stack_Ok;
 }
 
-static inline stack_err_t pop()
+static inline stack_err_t pop(Stack *stack, void *const outData, const size_t numberOfBytes)
 {
+    stack_lock(stack);
+
+    if (is_empty(stack) == stack_Empty)
+    {
+        stack_unlock(stack);
+        return stack_Empty;
+    }
+
+    if (stack->pointerIndex < numberOfBytes)
+    {
+        stack_unlock(stack);
+        return stack_Invalid_Read_Size;
+    }
+
+    const size_t newPtrIdx = stack->pointerIndex - numberOfBytes;
+    memcpy(outData, (const void *)&stack->data[newPtrIdx], numberOfBytes);
+    stack->pointerIndex = newPtrIdx;
+    stack_unlock(stack);
+    return stack_Ok;
 }
 
 static inline stack_err_t peek()
