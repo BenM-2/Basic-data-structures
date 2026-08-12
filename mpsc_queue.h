@@ -19,7 +19,7 @@
 
 typedef struct Mpsc_Queue
 {
-    volatile uint8_t *const data;
+    uint8_t *const data;
     size_t const dataSize;
 
     atomic_size_t writeIndex;
@@ -73,17 +73,17 @@ static inline size_t mpsc_queue_write_internal(Mpsc_Queue *const mpsc_queue, con
 {
     if ((writeIndex + numberOfBytes) < mpsc_queue->dataSize)
     {
-        memcpy(mpsc_queue->data[writeIndex], data, numberOfBytes);
+        memcpy((void *)&mpsc_queue->data[writeIndex], data, numberOfBytes);
         return writeIndex + numberOfBytes;
     }
 
     // before wrap
     size_t beforeWrap = mpsc_queue->dataSize - writeIndex;
-    memcpy(mpsc_queue->data[writeIndex], data, beforeWrap);
+    memcpy((void *)&mpsc_queue->data[writeIndex], data, beforeWrap);
 
     // After wrap
     size_t afterWrap = numberOfBytes - beforeWrap;
-    memcpy(mpsc_queue->data, (uint8_t *)data + beforeWrap, afterWrap);
+    memcpy((void *)&mpsc_queue->data, (uint8_t *)data + beforeWrap, afterWrap);
 
     return afterWrap;
 }
