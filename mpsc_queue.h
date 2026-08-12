@@ -38,6 +38,14 @@ typedef enum
 //------------------------------------------------------------------------------
 // Inline Function Implementations
 
+static inline void mpsc_queue_init(Mpsc_Queue *const mpsc_queue)
+{
+    atomic_store_explicit(&mpsc_queue->writeIndex, 0, memory_order_relaxed);
+    atomic_store_explicit(&mpsc_queue->readIndex, 0, memory_order_relaxed);
+    atomic_flag_clear_explicit(&mpsc_queue->writeLock, memory_order_relaxed);
+}
+ 
+
 static inline void mpsc_queue_lock(Mpsc_Queue *const mpsc_queue)
 {
     while (atomic_flag_test_and_set_explicit(&mpsc_queue->writeLock, memory_order_acquire))
@@ -139,6 +147,27 @@ static inline mpsc_queue_err_t mpsc_queue_pop(Mpsc_Queue *const mpsc_queue, void
 
     
     size_t newReadIndex = mpsc_queue_read_internal(mpsc_queue, outData, numberOfBytes);
+    atomic_store_explicit(&mpsc_queue->readIndex, newReadIndex, memory_order_release);
+    return mpsc_Queue_Ok;
+}
+
+static inline mpsc_queue_err_t mpsc_queue_peek(Mpsc_Queue *const mpsc_queue, void *const outData, size_t numberOfBytes)
+{
+    size_t available_bytes = mpsc_queue_available_read(mpsc_queue);
+    if (available_bytes < numberOfBytes)
+    {
+        return mpsc_Queue_Insufficient_Data;
+    }
+
+    
+    mpsc_queue_read_internal(mpsc_queue, outData, numberOfBytes);
+    return mpsc_Queue_Ok;
+}
+
+static inline mpsc_queue_err_t mpsc_queue_pop_all(Mpsc_Queue *const mpsc_queue, void *const outData)
+{
+    size_t available_bytes = mpsc_queue_available_read(mpsc_queue);    
+    size_t newReadIndex = mpsc_queue_read_internal(mpsc_queue, outData, available_bytes);
     atomic_store_explicit(&mpsc_queue->readIndex, newReadIndex, memory_order_release);
     return mpsc_Queue_Ok;
 }
