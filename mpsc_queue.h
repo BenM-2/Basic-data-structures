@@ -49,4 +49,43 @@ static inline void mpsc_queue_unlock(Mpsc_Queue *const mpsc_queue)
     atomic_flag_clear_explicit(&mpsc_queue->writeLock, memory_order_release);
 }
 
+static inline size_t mpsc_queue_available_read(const Mpsc_Queue *const mpsc_queue)
+{
+    size_t readIndex = mpsc_queue->readIndex;
+    size_t writeIndex = atomic_load_explicit(&mpsc_queue->writeIndex, memory_order_acquire);
+
+    if (writeIndex < readIndex)
+    {
+        return writeIndex + (mpsc_queue->dataSize - readIndex);
+    }
+    return writeIndex - readIndex;
+}
+
+static inline size_t mpsc_queue_available_write(const Mpsc_Queue *const mpsc_queue)
+{
+    // Available write = Total - Written(readable)
+    size_t available_write = (mpsc_queue->dataSize - 1) - mpsc_queue_available_read(mpsc_queue);
+    return available_write;
+}
+
+static inline size_t mpsc_queue_write_internal(Mpsc_Queue *const mpsc_queue, const void *const data, size_t numberOfBytes, size_t writeIndex)
+{
+    if ((writeIndex + numberOfBytes) < mpsc_queue->dataSize)
+    {
+        memcpy(mpsc_queue->data[writeIndex],data,numberOfBytes);
+        return writeIndex + numberOfBytes;
+    }
+
+    // before wrap 
+    size_t beforeWrap = mpsc_queue->dataSize - writeIndex;
+    memcpy(mpsc_queue->data[writeIndex],data,beforeWrap);
+
+    // After wrap
+    size_t afterWrap = numberOfBytes - beforeWrap;
+    memcpy(mpsc_queue->data,(uint8_t *)data+beforeWrap,afterWrap);
+
+    return afterWrap;
+}
+
+
 #endif
