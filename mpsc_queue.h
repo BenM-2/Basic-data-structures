@@ -31,6 +31,7 @@ typedef struct Mpsc_Queue
 typedef enum
 {
     mpsc_Queue_Ok,
+    mpsc_Queue_Insufficient_Space,
 } mpsc_queue_err_t;
 
 //------------------------------------------------------------------------------
@@ -72,20 +73,37 @@ static inline size_t mpsc_queue_write_internal(Mpsc_Queue *const mpsc_queue, con
 {
     if ((writeIndex + numberOfBytes) < mpsc_queue->dataSize)
     {
-        memcpy(mpsc_queue->data[writeIndex],data,numberOfBytes);
+        memcpy(mpsc_queue->data[writeIndex], data, numberOfBytes);
         return writeIndex + numberOfBytes;
     }
 
-    // before wrap 
+    // before wrap
     size_t beforeWrap = mpsc_queue->dataSize - writeIndex;
-    memcpy(mpsc_queue->data[writeIndex],data,beforeWrap);
+    memcpy(mpsc_queue->data[writeIndex], data, beforeWrap);
 
     // After wrap
     size_t afterWrap = numberOfBytes - beforeWrap;
-    memcpy(mpsc_queue->data,(uint8_t *)data+beforeWrap,afterWrap);
+    memcpy(mpsc_queue->data, (uint8_t *)data + beforeWrap, afterWrap);
 
     return afterWrap;
 }
 
+static inline mpsc_queue_err_t mpsc_queue_push(Mpsc_Queue *const mpsc_queue, const void *const data, size_t numberOfBytes)
+{
+    mpsc_queue_lock(mpsc_queue);
+    size_t available_bytes = mpsc_queue_available_write(mpsc_queue);
+    if (available_bytes < numberOfBytes)
+    {
+        mpsc_queue_unlock(mpsc_queue);
+        return mpsc_Queue_Insufficient_Space;
+    }
 
+    size_t writeIndex = atomic_load_explicit(&mpsc_queue->writeIndex,memory_order_acquire);
+
+    size_t newWriteIndex = mpsc_queue_write_internal(mpsc_queue,data,numberOfBytes,writeIndex);
+
+    atomic_store_explicit(&mpsc_queue->writeIndex, newWriteIndex, memory_order_release);
+    mpsc_queue_unlock(mpsc_queue);
+    return mpsc_Queue_Ok;
+}
 #endif
