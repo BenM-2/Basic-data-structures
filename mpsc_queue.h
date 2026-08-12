@@ -23,7 +23,7 @@ typedef struct Mpsc_Queue
     size_t const dataSize;
 
     atomic_size_t writeIndex;
-    size_t readIndex;
+    atomic_size_t readIndex;
 
     atomic_flag writeLock;
 } Mpsc_Queue;
@@ -32,6 +32,7 @@ typedef enum
 {
     mpsc_Queue_Ok,
     mpsc_Queue_Insufficient_Space,
+    mpsc_Queue_Insufficient_Data,
 } mpsc_queue_err_t;
 
 //------------------------------------------------------------------------------
@@ -52,7 +53,7 @@ static inline void mpsc_queue_unlock(Mpsc_Queue *const mpsc_queue)
 
 static inline size_t mpsc_queue_available_read(const Mpsc_Queue *const mpsc_queue)
 {
-    size_t readIndex = mpsc_queue->readIndex;
+    size_t readIndex = atomic_load_explicit(&mpsc_queue->readIndex, memory_order_acquire);
     size_t writeIndex = atomic_load_explicit(&mpsc_queue->writeIndex, memory_order_acquire);
 
     if (writeIndex < readIndex)
@@ -83,7 +84,7 @@ static inline size_t mpsc_queue_write_internal(Mpsc_Queue *const mpsc_queue, con
 
     // After wrap
     size_t afterWrap = numberOfBytes - beforeWrap;
-    memcpy((void *)&mpsc_queue->data, (uint8_t *)data + beforeWrap, afterWrap);
+    memcpy(&mpsc_queue->data[0], (uint8_t *)data + beforeWrap, afterWrap);
 
     return afterWrap;
 }
@@ -98,12 +99,47 @@ static inline mpsc_queue_err_t mpsc_queue_push(Mpsc_Queue *const mpsc_queue, con
         return mpsc_Queue_Insufficient_Space;
     }
 
-    size_t writeIndex = atomic_load_explicit(&mpsc_queue->writeIndex,memory_order_acquire);
+    size_t writeIndex = atomic_load_explicit(&mpsc_queue->writeIndex, memory_order_relaxed);
 
-    size_t newWriteIndex = mpsc_queue_write_internal(mpsc_queue,data,numberOfBytes,writeIndex);
+    size_t newWriteIndex = mpsc_queue_write_internal(mpsc_queue, data, numberOfBytes, writeIndex);
 
     atomic_store_explicit(&mpsc_queue->writeIndex, newWriteIndex, memory_order_release);
     mpsc_queue_unlock(mpsc_queue);
+    return mpsc_Queue_Ok;
+}
+
+static inline size_t mpsc_queue_read_internal(Mpsc_Queue *const mpsc_queue, void *const outData, size_t numberOfBytes)
+{
+    size_t readIndex = atomic_load_explicit(&mpsc_queue->readIndex, memory_order_relaxed);
+
+    if (readIndex + numberOfBytes < mpsc_queue->dataSize)
+    {
+        memcpy(outData, (void *)&mpsc_queue->data[readIndex], numberOfBytes);
+        return readIndex + numberOfBytes;
+    }
+
+    // before wrap
+    size_t beforeWrap = mpsc_queue->dataSize - readIndex;
+    memcpy(outData, (void *)&mpsc_queue->data[readIndex], beforeWrap);
+
+    // After wrap
+    size_t afterWrap = numberOfBytes - beforeWrap;
+    memcpy((uint8_t *)outData + beforeWrap, &mpsc_queue->data[0], afterWrap);
+
+    return afterWrap;
+}
+
+static inline mpsc_queue_err_t mpsc_queue_pop(Mpsc_Queue *const mpsc_queue, void *const outData, size_t numberOfBytes)
+{
+    size_t available_bytes = mpsc_queue_available_read(mpsc_queue);
+    if (available_bytes < numberOfBytes)
+    {
+        return mpsc_Queue_Insufficient_Data;
+    }
+
+    
+    size_t newReadIndex = mpsc_queue_read_internal(mpsc_queue, outData, numberOfBytes);
+    atomic_store_explicit(&mpsc_queue->readIndex, newReadIndex, memory_order_release);
     return mpsc_Queue_Ok;
 }
 #endif
