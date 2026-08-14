@@ -44,10 +44,33 @@ All opperations take in a data pointer to write to/from and will always return a
 When an opperation is being done to the stack. It is locked whilst the data is read/written. If the stack is already being pushed or poped the thread will spin until it gains the lock required to read/write.
 
 
-
-
-
-
 # Queue FIFO
+
+
+# Dynamic Array
+
+## Usage
+```c 
+// Make array pointer and assign it to NULL e.g
+int *arr = NULL;
+//Then whenever you push just use 
+const int value = 40;
+dpush(arr,value);
+// Indexing the array is done as normal with 
+arr[index];
+// To access the length and the cap use 
+dlen(arr);
+dcap(arr);
+// Remember to Free the Array at the end using arrFree
+arrFree(arr);
+```
+## Struct typings
+``` c 
+typedef struct
+{
+    size_t len;
+    size_t cap;
+} Dyn_Header;
+```
 
 
