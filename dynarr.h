@@ -25,6 +25,7 @@ typedef struct
 #define dcap(arr) (arr ? dhdr(arr)->cap : 0)
 #define dGrow(arr, n) ((arr) = da_grow((arr), (n), sizeof(*(arr))))
 #define dpush(arr, value) (dGrow(arr, 1), (arr)[dhdr(arr)->len++] = (value));
+#define arrFree(arr) (free(dhdr(arr)));
 //------------------------------------------------------------------------------
 // Function Implementations
 
